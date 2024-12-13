@@ -7,6 +7,9 @@ require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT;
+const User = require("./models/users");
+
+
 
 // setup json middleware
 app.use(express.json());
@@ -37,34 +40,37 @@ mongoose
 // Example:
 // GET http://localhost:3000/users
 app.get('/users', async (req, res) => {
-  try {
-    // get all users from mongo
-    res.json({message: "getting all users"});
-  } catch (error) {
-    res.status(500).json({
-      message: 'error fetching users'
-    });
-  }
+  // get all users from mongo
+  const users = await User.find({})
+  res.json(users);
 });
 
 // route to get a single user by id
 // Example:
 // GET http://localhost:3000/users/123456789
-app.get("/users/:uid", (req, res) => {
-  res.json({
-    "message": "hi user "
-  });
+app.get("/users/:uid", async (req, res) => {
+  const userId = req.params.uid;
+  console.log(userId);
+  const user = await User.findOne({ _id: userId })
+  res.json(user);
 });
 
 
 app.post('/users', async (req, res) => {
   try {
-    res.json({
-      "message": "creating a new user..."
+    const data = req.body;
+    const myNewUser = new User({
+      name: data.name,
+      email: data.email,
+      password: data.password
     });
+    await myNewUser.save();
+    res.json(myNewUser);
   } catch (e) {
-      console.error(e);
-      res.status(500).json({ error: 'Failed to save user' });
+    console.log(e);
+    res.json({
+      error: "cannot create user"
+    });
   }
 })
 
@@ -73,11 +79,30 @@ app.put("/users/:uid", (req, res) => {
   res.json({
     message: "update the user"
   })
-})
+});
+
+app.put("/users/:uid/deactivate", async (req, res) => {
+  // const { uid } = req.params;
+  const id = req.params.uid;
+  console.log(id);
+
+  const deactivatedUser = await User.findByIdAndUpdate(id, { isActive: false }, { new: true });
+  if (!deactivatedUser) {
+    return res.status(404).send({ error: 'User not found' });
+  } else {
+    res.json(deactivatedUser);
+  }
+});
 
 //Deleting a user 
 app.delete('/users/:uid', async (req, res) => {
+  try {
     const userId = req.params.uid;
-    
-    res.json({message: "delete the user " + userId});
+    console.log(userId);
+    const deletedUser = await User.deleteOne({ _id: userId });
+    res.json(deletedUser);
+  } catch (e) {
+    console.log(e);
+    res.json({message: "error deleting user"})
+  }
 })
